@@ -1,0 +1,46 @@
+import http from './http'
+
+export const login = data => http.post('/api/login', data)
+export const register = data => http.post('/api/register', data)
+export const logout = () => http.post('/api/logout')
+export const getCaptcha = () => http.get('/api/captcha')
+
+export const listInterfaces = params => http.get('/api/interfaces', { params })
+export const createInterface = data => http.post('/api/interfaces', data)
+export const updateInterface = (id, data) => http.put(`/api/interfaces/${id}`, data)
+export const deleteInterface = id => http.delete(`/api/interfaces/${id}`)
+export const getInterface = id => http.get(`/api/interfaces/${id}`)
+
+export const listTestcases = params => http.get('/api/testcases', { params })
+export const createTestcase = data => http.post('/api/testcases', data)
+export const updateTestcase = (id, data) => http.put(`/api/testcases/${id}`, data)
+export const deleteTestcase = id => http.delete(`/api/testcases/${id}`)
+export const getTestcase = id => http.get(`/api/testcases/${id}`)
+export const runTestcase = (id, data) => http.post(`/api/run/testcase/${id}`, data)
+export const runSuite = data => http.post('/api/run/suite', data)
+export const getRunResults = runId => http.get(`/api/run/results/${runId}`)
+
+export const listFlows = () => http.get('/api/flows')
+export const getFlow = id => http.get(`/api/flows/${id}`)
+export const createFlow = data => http.post('/api/flows', data)
+export const updateFlow = (id, data) => http.put(`/api/flows/${id}`, data)
+export const deleteFlow = id => http.delete(`/api/flows/${id}`)
+export const runFlow = (id, data) => http.post(`/api/flows/${id}/run`, data)
+export const getFlowResults = runId => http.get(`/api/flows/results/${runId}`)
+
+export const listFunctions = () => http.get('/api/functions/')
+export const getFunctionDetail = name => http.get(`/api/functions/${name}`)
+export const executeFunction = data => http.post('/api/functions/execute', data)
+
+export const listUsers = () => http.get('/api/users')
+export const createUser = data => http.post('/api/users', data)
+export const updateUser = (id, data) => http.put(`/api/users/${id}`, data)
+export const deleteUser = id => http.delete(`/api/users/${id}`)
+export const getUser = id => http.get(`/api/users/${id}`)
+
+export const listParamTemplates = () => http.get('/api/param-templates')
+export const createParamTemplate = data => http.post('/api/param-templates', data)
+export const updateParamTemplate = (id, data) => http.put(`/api/param-templates/${id}`, data)
+export const deleteParamTemplate = id => http.delete(`/api/param-templates/${id}`)
+export const previewParamTemplate = data => http.post('/api/param-templates/preview', data)
+export const generateFromNL = data => http.post('/api/nl/generate', data)

@@ -1,0 +1,22 @@
+﻿【流程自然语言示例】
+
+测试流程如下（含条件分支 + 步骤断言）：
+1) POST /api/login
+请求: {"params":{"user":"alice","password":"p1"},"extract":{"token":"$.data.token","is_vip":"$.data.vip"}}
+响应: {"retCode":200,"token":"t-001","vip":true}
+
+IF 条件: ${steps.step1.is_vip} == True
+THEN:
+2.1) GET /api/vip/reco
+请求: {"params":{"token":"${steps.step1.token}"}}
+响应: {"retCode":200,"data":[]}
+ELSE:
+2.2) GET /api/free/reco
+请求: {"params":{"token":"${steps.step1.token}"}}
+响应: {"retCode":200,"data":[]}
+
+步骤1断言是 retCode == 200
+步骤2.1断言是 retCode == 200
+步骤2.2断言是 data != null
+步骤2.2断言是 retMsg == ok
+步骤2.2断言是 retCode == 200
