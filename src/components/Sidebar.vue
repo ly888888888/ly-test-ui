@@ -10,6 +10,7 @@
 
     <el-menu :default-active="active" class="menu" router>
       <el-menu-item index="/">概览</el-menu-item>
+      <el-menu-item index="/projects" v-if="can('project:read')">项目管理</el-menu-item>
       <el-menu-item index="/interfaces" v-if="can('interface:read')">接口管理</el-menu-item>
       <el-menu-item index="/testcases" v-if="can('testcase:read')">用例管理</el-menu-item>
       <el-menu-item index="/flows" v-if="can('flow:read')">流程管理</el-menu-item>

@@ -181,6 +181,23 @@ export default {
         this.flowText = flowPayload ? JSON.stringify(flowPayload, null, 2) : ''
       } catch (e) {
         const err = e.response?.data
+        // 处理项目不存在或禁用的错误
+        if (err?.code === 'PROJECT_NOT_FOUND') {
+          this.$message.error(err.error)
+          this.$confirm('是否立即创建该项目？', '提示', {
+            confirmButtonText: '去创建',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
+            this.$router.push('/projects')
+          }).catch(() => {})
+          return
+        }
+        if (err?.code === 'PROJECT_DISABLED') {
+          this.$message.error(err.error)
+          return
+        }
+        // 其他格式错误
         if (err?.error) {
           this.errorMsg = err.error
           const kind = this.activeTab === 'flow' ? 'flow' : 'case'
@@ -192,7 +209,8 @@ export default {
           this.errorVisible = true
           return
         }
-        const { interfacePayload, testcases } = parseNL(this.input)
+        // fallback 本地解析
+        const { interfacePayload, testcases } = parseNL(this.inputValue)
         this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
         this.testcasesText = (testcases && testcases.length) ? JSON.stringify(testcases, null, 2) : ''
         this.flowText = ''
@@ -204,7 +222,12 @@ export default {
         await createInterface(payload)
         ElMessage.success('接口创建成功')
       } catch (e) {
-        ElMessage.error('接口创建失败：' + (e.response?.data?.error || e.message))
+        const errMsg = e.response?.data?.error || e.message
+        if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
+          ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else {
+          ElMessage.error('接口创建失败：' + errMsg)
+        }
       }
     },
     async createTestcases() {
@@ -242,7 +265,6 @@ export default {
         ElMessage.success(`成功创建 ${successCount} 个用例`)
         this.testcasesText = ''
       } else {
-        // 精简错误提示
         if (firstError && firstError.msg === 'api_id not found') {
           ElMessageBox.alert(
             '接口不存在，请先创建对应的接口。',
@@ -264,7 +286,12 @@ export default {
         await createFlow(payload)
         ElMessage.success('流程创建成功')
       } catch (e) {
-        ElMessage.error('流程创建失败：' + (e.response?.data?.error || e.message))
+        const errMsg = e.response?.data?.error || e.message
+        if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
+          ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else {
+          ElMessage.error('流程创建失败：' + errMsg)
+        }
       }
     },
     async copySample() {

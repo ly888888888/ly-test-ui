@@ -12,10 +12,13 @@ import SuiteRun from '../views/SuiteRun.vue'
 import Users from '../views/Users.vue'
 import NLInput from '../views/NLInput.vue'
 import ParamTemplates from '../views/ParamTemplates.vue'
+import Projects from '../views/Projects.vue'
+
 
 const routes = [
   { path: '/login', name: 'login', component: Login, meta: { title: '登录' } },
   { path: '/', name: 'dashboard', component: Dashboard, meta: { title: '概览' } },
+  { path: '/projects', name: 'projects', component: Projects, meta: { title: '项目管理' } },
   { path: '/interfaces', name: 'interfaces', component: Interfaces, meta: { title: '接口管理' } },
   { path: '/testcases', name: 'testcases', component: Testcases, meta: { title: '用例管理' } },
   { path: '/flows', name: 'flows', component: Flows, meta: { title: '流程管理' } },

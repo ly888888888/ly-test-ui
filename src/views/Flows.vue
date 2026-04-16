@@ -11,6 +11,7 @@
 
         <el-table :data="list" style="width: 100%" v-loading="loading">
           <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column prop="project" label="项目" />
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="description" label="描述" />
           <el-table-column label="启用" width="90">
@@ -47,7 +48,6 @@
         <el-form-item label="Host" required>
           <el-input v-model="runPayload.host" placeholder="172.17.12.101:9500" />
         </el-form-item>
-        <!-- 对比Host已删除 -->
       </el-form>
       <template #footer>
         <el-button @click="runVisible = false">取消</el-button>
@@ -86,13 +86,14 @@ export default {
       dialogText: '',
       editingId: null,
       runVisible: false,
-      runPayload: { host: '' }, // 只保留 host
+      runPayload: { host: '' },
       runId: null,
       runLoading: false,
       helpContent: `// 流程 JSON 示例
 {
   "name": "demo_flow",
   "description": "示例流程",
+  "project": "demo",
   "steps": [
     {
       "name": "step1",
@@ -135,6 +136,7 @@ export default {
       this.dialogText = JSON.stringify({
         name: 'demo_flow',
         description: '',
+        project: 'demo',
         steps: [{ name: 'step1', api_id: 1 }],
         enabled: true
       }, null, 2)
@@ -154,6 +156,11 @@ export default {
         ElMessage.error('JSON 格式错误')
         return
       }
+      // 确保 payload 中包含 project 字段
+      if (!payload.project) {
+        ElMessage.error('流程 JSON 中必须包含 project 字段（项目名称）')
+        return
+      }
       try {
         if (this.editingId) {
           await updateFlow(this.editingId, payload)
@@ -166,7 +173,11 @@ export default {
         this.fetchList()
       } catch (error) {
         const errMsg = error.response?.data?.error || error.message
-        ElMessage.error(`保存失败：${errMsg}`)
+        if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
+          ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else {
+          ElMessage.error(`保存失败：${errMsg}`)
+        }
       }
     },
     async toggleEnabled(row) {

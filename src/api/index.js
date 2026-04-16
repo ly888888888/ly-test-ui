@@ -44,3 +44,8 @@ export const updateParamTemplate = (id, data) => http.put(`/api/param-templates/
 export const deleteParamTemplate = id => http.delete(`/api/param-templates/${id}`)
 export const previewParamTemplate = data => http.post('/api/param-templates/preview', data)
 export const generateFromNL = data => http.post('/api/nl/generate', data)
+
+export const listProjects = () => http.get('/api/projects')
+export const createProject = data => http.post('/api/projects', data)
+export const updateProject = (id, data) => http.put(`/api/projects/${id}`, data)
+export const deleteProject = id => http.delete(`/api/projects/${id}`)

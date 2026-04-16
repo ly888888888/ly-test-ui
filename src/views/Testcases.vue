@@ -13,6 +13,7 @@
 
         <el-table :data="list" style="width: 100%" v-loading="loading">
           <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column prop="project" label="项目" />
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="test_type" label="类型" width="110" />
           <el-table-column prop="api_id" label="接口ID" width="90" />
@@ -97,7 +98,7 @@ export default {
       runPayload: { host: '', host_compare: '' },
       runId: null,
       runLoading: false,
-      currentTestType: '', // 存储当前运行用例的 test_type
+      currentTestType: '',
       helpContent: `// 用例 JSON 示例
 {
   "project": "jupiter",
@@ -129,7 +130,6 @@ export default {
     async fetchList() {
       this.loading = true
       try {
-        // 将 api_id 转为数字（如果非空）
         const params = { ...this.filters }
         if (params.api_id && !isNaN(params.api_id)) params.api_id = Number(params.api_id)
         const res = await listTestcases(params)
@@ -168,6 +168,11 @@ export default {
         ElMessage.error('JSON 格式错误')
         return
       }
+      // 确保 payload 中包含 project 字段
+      if (!payload.project) {
+        ElMessage.error('用例 JSON 中必须包含 project 字段（项目名称）')
+        return
+      }
       try {
         if (this.editingId) {
           await updateTestcase(this.editingId, payload)
@@ -180,7 +185,11 @@ export default {
         this.fetchList()
       } catch (error) {
         const errMsg = error.response?.data?.error || error.message
-        ElMessage.error(`保存失败：${errMsg}`)
+        if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
+          ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else {
+          ElMessage.error(`保存失败：${errMsg}`)
+        }
       }
     },
     async toggleEnabled(row) {
@@ -188,7 +197,6 @@ export default {
         await updateTestcase(row.id, { enabled: row.enabled })
         ElMessage.success(`已${row.enabled ? '启用' : '禁用'}`)
       } catch (error) {
-        // 恢复原状态
         row.enabled = !row.enabled
         const errMsg = error.response?.data?.error || error.message
         ElMessage.error(`切换状态失败：${errMsg}`)
@@ -204,7 +212,6 @@ export default {
       } catch {
         return
       }
-
       try {
         await deleteTestcase(row.id)
         ElMessage.success('删除成功')
@@ -229,22 +236,18 @@ export default {
     openRun(row) {
       this.runId = row.id
       this.currentTestType = row.test_type
-      // 重置 payload，对比 Host 仅在 compare 时需要
       this.runPayload = { host: '', host_compare: '' }
       this.runVisible = true
     },
     async runNow() {
-      // 校验 Host 必填
       if (!this.runPayload.host || this.runPayload.host.trim() === '') {
         ElMessage.warning('请输入 Host 地址')
         return
       }
-      // 如果是 compare 类型，还需校验对比 Host
       if (this.isCompareType && (!this.runPayload.host_compare || this.runPayload.host_compare.trim() === '')) {
         ElMessage.warning('对比测试需要填写对比 Host 地址')
         return
       }
-
       this.runLoading = true
       try {
         const res = await runTestcase(this.runId, this.runPayload)

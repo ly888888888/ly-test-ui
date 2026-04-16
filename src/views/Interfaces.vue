@@ -45,7 +45,7 @@ import JsonEditorDialog from '../components/JsonEditorDialog.vue'
 import { exportToExcel } from '../utils/export'
 import { mapState } from 'vuex'
 import { hasPerm } from '../utils/perm'
-import { ElMessage, ElMessageBox } from 'element-plus'   // 导入 Element Plus 消息组件
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   name: 'Interfaces',
@@ -116,18 +116,27 @@ export default {
       try {
         payload = JSON.parse(text)
       } catch (e) {
-        return this.$message.error('JSON 格式错误')
+        ElMessage.error('JSON 格式错误')
+        return
       }
-      if (this.editingId) {
-        await updateInterface(this.editingId, payload)
-      } else {
-        await createInterface(payload)
+      try {
+        if (this.editingId) {
+          await updateInterface(this.editingId, payload)
+        } else {
+          await createInterface(payload)
+        }
+        this.dialogVisible = false
+        this.fetchList()
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message
+        if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
+          ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else {
+          ElMessage.error(`保存失败：${errMsg}`)
+        }
       }
-      this.dialogVisible = false
-      this.fetchList()
     },
     async remove(row) {
-      // 二次确认
       try {
         await ElMessageBox.confirm(
           `确定要删除接口 “${row.method} ${row.path}” 吗？`,
@@ -139,11 +148,9 @@ export default {
           }
         )
       } catch {
-        // 用户取消删除
         return
       }
 
-      // 执行删除，捕获错误
       try {
         await deleteInterface(row.id)
         ElMessage.success('删除成功')
