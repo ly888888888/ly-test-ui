@@ -13,7 +13,15 @@
           <el-table-column prop="id" label="ID" width="70" />
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="description" label="描述" />
-          <el-table-column prop="enabled" label="启用" width="90" />
+          <el-table-column label="启用" width="90">
+            <template #default="scope">
+              <el-switch
+                v-model="scope.row.enabled"
+                :disabled="!canWrite"
+                @change="toggleEnabled(scope.row)"
+              />
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="320">
             <template #default="scope">
               <el-button size="small" v-if="canWrite" @click="openEdit(scope.row)">编辑</el-button>
@@ -36,16 +44,14 @@
 
     <el-dialog v-model="runVisible" title="运行流程" width="40%">
       <el-form>
-        <el-form-item label="Host">
+        <el-form-item label="Host" required>
           <el-input v-model="runPayload.host" placeholder="172.17.12.101:9500" />
         </el-form-item>
-        <el-form-item label="对比Host">
-          <el-input v-model="runPayload.host_compare" placeholder="可选" />
-        </el-form-item>
+        <!-- 对比Host已删除 -->
       </el-form>
       <template #footer>
         <el-button @click="runVisible = false">取消</el-button>
-        <el-button type="primary" @click="runNow">运行</el-button>
+        <el-button type="primary" @click="runNow" :loading="runLoading">运行</el-button>
       </template>
     </el-dialog>
   </div>
@@ -57,6 +63,7 @@ import JsonEditorDialog from '../components/JsonEditorDialog.vue'
 import { exportToExcel, saveRecentRun } from '../utils/export'
 import { mapState } from 'vuex'
 import { hasPerm } from '../utils/perm'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   name: 'Flows',
@@ -79,8 +86,9 @@ export default {
       dialogText: '',
       editingId: null,
       runVisible: false,
-      runPayload: { host: '', host_compare: '' },
+      runPayload: { host: '' }, // 只保留 host
       runId: null,
+      runLoading: false,
       helpContent: `// 流程 JSON 示例
 {
   "name": "demo_flow",
@@ -115,6 +123,8 @@ export default {
       try {
         const res = await listFlows()
         this.list = res.data
+      } catch (error) {
+        ElMessage.error('获取流程列表失败')
       } finally {
         this.loading = false
       }
@@ -138,29 +148,90 @@ export default {
     },
     async save(text) {
       let payload
-      try { payload = JSON.parse(text) } catch (e) { return this.$message.error('JSON 格式错误') }
-      if (this.editingId) {
-        await updateFlow(this.editingId, payload)
-      } else {
-        await createFlow(payload)
+      try {
+        payload = JSON.parse(text)
+      } catch (e) {
+        ElMessage.error('JSON 格式错误')
+        return
       }
-      this.dialogVisible = false
-      this.fetchList()
+      try {
+        if (this.editingId) {
+          await updateFlow(this.editingId, payload)
+          ElMessage.success('更新成功')
+        } else {
+          await createFlow(payload)
+          ElMessage.success('创建成功')
+        }
+        this.dialogVisible = false
+        this.fetchList()
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`保存失败：${errMsg}`)
+      }
+    },
+    async toggleEnabled(row) {
+      try {
+        await updateFlow(row.id, { enabled: row.enabled })
+        ElMessage.success(`已${row.enabled ? '启用' : '禁用'}`)
+      } catch (error) {
+        row.enabled = !row.enabled
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`切换状态失败：${errMsg}`)
+      }
     },
     async remove(row) {
-      await deleteFlow(row.id)
-      this.fetchList()
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除流程 “${row.name}” 吗？`,
+          '删除确认',
+          { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+        )
+      } catch {
+        return
+      }
+      try {
+        await deleteFlow(row.id)
+        ElMessage.success('删除成功')
+        this.fetchList()
+      } catch (error) {
+        if (error.response?.status === 400) {
+          const errMsg = error.response.data?.error
+          if (errMsg && errMsg.includes('referenced')) {
+            ElMessageBox.alert(
+              '该流程可能被其他资源引用，请先解除引用后再删除。',
+              '无法删除',
+              { confirmButtonText: '知道了', type: 'error' }
+            ).catch(() => {})
+          } else {
+            ElMessage.error(errMsg || '删除失败')
+          }
+        } else {
+          ElMessage.error('删除失败，请稍后重试')
+        }
+      }
     },
     openRun(row) {
       this.runId = row.id
-      this.runPayload = { host: '', host_compare: '' }
+      this.runPayload = { host: '' }
       this.runVisible = true
     },
     async runNow() {
-      const res = await runFlow(this.runId, this.runPayload)
-      this.runVisible = false
-      saveRecentRun(res.data.run_id || res.data.runId, 'flow')
-      this.$router.push({ path: '/results', query: { run_id: res.data.run_id || res.data.runId, type: 'flow' } })
+      if (!this.runPayload.host || this.runPayload.host.trim() === '') {
+        ElMessage.warning('请输入 Host 地址')
+        return
+      }
+      this.runLoading = true
+      try {
+        const res = await runFlow(this.runId, this.runPayload)
+        this.runVisible = false
+        saveRecentRun(res.data.run_id || res.data.runId, 'flow')
+        this.$router.push({ path: '/results', query: { run_id: res.data.run_id || res.data.runId, type: 'flow' } })
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`运行失败：${errMsg}`)
+      } finally {
+        this.runLoading = false
+      }
     },
     exportData() {
       exportToExcel(this.list, 'flows.xlsx')

@@ -16,7 +16,15 @@
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="test_type" label="类型" width="110" />
           <el-table-column prop="api_id" label="接口ID" width="90" />
-          <el-table-column prop="enabled" label="启用" width="90" />
+          <el-table-column label="启用" width="90">
+            <template #default="scope">
+              <el-switch
+                v-model="scope.row.enabled"
+                :disabled="!canWrite"
+                @change="toggleEnabled(scope.row)"
+              />
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="320">
             <template #default="scope">
               <el-button size="small" v-if="canWrite" @click="openEdit(scope.row)">编辑</el-button>
@@ -38,16 +46,16 @@
 
     <el-dialog v-model="runVisible" title="运行用例" width="40%">
       <el-form>
-        <el-form-item label="Host">
+        <el-form-item label="Host" required>
           <el-input v-model="runPayload.host" placeholder="172.17.12.101:9500" />
         </el-form-item>
-        <el-form-item label="对比Host">
-          <el-input v-model="runPayload.host_compare" placeholder="可选" />
+        <el-form-item v-if="isCompareType" label="对比Host" required>
+          <el-input v-model="runPayload.host_compare" placeholder="请输入对比Host地址" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="runVisible = false">取消</el-button>
-        <el-button type="primary" @click="runNow">运行</el-button>
+        <el-button type="primary" @click="runNow" :loading="runLoading">运行</el-button>
       </template>
     </el-dialog>
   </div>
@@ -59,6 +67,7 @@ import JsonEditorDialog from '../components/JsonEditorDialog.vue'
 import { exportToExcel, saveRecentRun } from '../utils/export'
 import { mapState } from 'vuex'
 import { hasPerm } from '../utils/perm'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   name: 'Testcases',
@@ -70,6 +79,9 @@ export default {
     },
     canRun() {
       return hasPerm(this.user?.permissions, 'run:execute')
+    },
+    isCompareType() {
+      return this.currentTestType === 'compare'
     }
   },
   data() {
@@ -84,6 +96,8 @@ export default {
       runVisible: false,
       runPayload: { host: '', host_compare: '' },
       runId: null,
+      runLoading: false,
+      currentTestType: '', // 存储当前运行用例的 test_type
       helpContent: `// 用例 JSON 示例
 {
   "project": "jupiter",
@@ -115,8 +129,13 @@ export default {
     async fetchList() {
       this.loading = true
       try {
-        const res = await listTestcases(this.filters)
+        // 将 api_id 转为数字（如果非空）
+        const params = { ...this.filters }
+        if (params.api_id && !isNaN(params.api_id)) params.api_id = Number(params.api_id)
+        const res = await listTestcases(params)
         this.list = res.data
+      } catch (error) {
+        ElMessage.error('获取用例列表失败')
       } finally {
         this.loading = false
       }
@@ -143,29 +162,101 @@ export default {
     },
     async save(text) {
       let payload
-      try { payload = JSON.parse(text) } catch (e) { return this.$message.error('JSON 格式错误') }
-      if (this.editingId) {
-        await updateTestcase(this.editingId, payload)
-      } else {
-        await createTestcase(payload)
+      try {
+        payload = JSON.parse(text)
+      } catch (e) {
+        ElMessage.error('JSON 格式错误')
+        return
       }
-      this.dialogVisible = false
-      this.fetchList()
+      try {
+        if (this.editingId) {
+          await updateTestcase(this.editingId, payload)
+          ElMessage.success('更新成功')
+        } else {
+          await createTestcase(payload)
+          ElMessage.success('创建成功')
+        }
+        this.dialogVisible = false
+        this.fetchList()
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`保存失败：${errMsg}`)
+      }
+    },
+    async toggleEnabled(row) {
+      try {
+        await updateTestcase(row.id, { enabled: row.enabled })
+        ElMessage.success(`已${row.enabled ? '启用' : '禁用'}`)
+      } catch (error) {
+        // 恢复原状态
+        row.enabled = !row.enabled
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`切换状态失败：${errMsg}`)
+      }
     },
     async remove(row) {
-      await deleteTestcase(row.id)
-      this.fetchList()
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除用例 “${row.name}” 吗？`,
+          '删除确认',
+          { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+        )
+      } catch {
+        return
+      }
+
+      try {
+        await deleteTestcase(row.id)
+        ElMessage.success('删除成功')
+        this.fetchList()
+      } catch (error) {
+        if (error.response?.status === 400) {
+          const errMsg = error.response.data?.error
+          if (errMsg && errMsg.includes('referenced')) {
+            ElMessageBox.alert(
+              '该用例已被流程引用，请先解除引用后再删除。',
+              '无法删除',
+              { confirmButtonText: '知道了', type: 'error' }
+            ).catch(() => {})
+          } else {
+            ElMessage.error(errMsg || '删除失败')
+          }
+        } else {
+          ElMessage.error('删除失败，请稍后重试')
+        }
+      }
     },
     openRun(row) {
       this.runId = row.id
+      this.currentTestType = row.test_type
+      // 重置 payload，对比 Host 仅在 compare 时需要
       this.runPayload = { host: '', host_compare: '' }
       this.runVisible = true
     },
     async runNow() {
-      const res = await runTestcase(this.runId, this.runPayload)
-      this.runVisible = false
-      saveRecentRun(res.data.run_id || res.data.runId, 'testcase')
-      this.$router.push({ path: '/results', query: { run_id: res.data.run_id || res.data.runId } })
+      // 校验 Host 必填
+      if (!this.runPayload.host || this.runPayload.host.trim() === '') {
+        ElMessage.warning('请输入 Host 地址')
+        return
+      }
+      // 如果是 compare 类型，还需校验对比 Host
+      if (this.isCompareType && (!this.runPayload.host_compare || this.runPayload.host_compare.trim() === '')) {
+        ElMessage.warning('对比测试需要填写对比 Host 地址')
+        return
+      }
+
+      this.runLoading = true
+      try {
+        const res = await runTestcase(this.runId, this.runPayload)
+        this.runVisible = false
+        saveRecentRun(res.data.run_id || res.data.runId, 'testcase')
+        this.$router.push({ path: '/results', query: { run_id: res.data.run_id || res.data.runId } })
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message
+        ElMessage.error(`运行失败：${errMsg}`)
+      } finally {
+        this.runLoading = false
+      }
     },
     exportData() {
       exportToExcel(this.list, 'testcases.xlsx')
