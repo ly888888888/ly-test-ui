@@ -4,10 +4,10 @@
       <div class="panel-header">接口管理</div>
       <div class="panel-body">
         <div class="toolbar">
-          <el-input v-model="filters.project" placeholder="项目" />
-          <el-input v-model="filters.path" placeholder="路径" />
-          <el-input v-model="filters.method" placeholder="方法" />
-          <el-button type="primary" @click="fetchList">查询</el-button>
+          <el-input v-model="filters.project" placeholder="项目" style="width: 150px" clearable />
+          <el-input v-model="filters.path" placeholder="路径" style="width: 200px" clearable />
+          <el-input v-model="filters.method" placeholder="方法" style="width: 120px" clearable />
+          <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button v-if="canWrite" @click="openCreate">新建</el-button>
           <el-button @click="exportData">导出</el-button>
         </div>
@@ -25,6 +25,18 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <div class="pagination">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -65,6 +77,11 @@ export default {
       dialogTitle: '',
       dialogText: '',
       editingId: null,
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 0
+      },
       helpContent: `// 接口 JSON 示例
 {
   "project": "jupiter",
@@ -87,11 +104,29 @@ export default {
     async fetchList() {
       this.loading = true
       try {
-        const res = await listInterfaces(this.filters)
-        this.list = res.data
+        const params = {
+          ...this.filters,
+          page: this.pagination.page,
+          page_size: this.pagination.pageSize
+        }
+        const res = await listInterfaces(params)
+        this.list = res.data.items || []
+        this.pagination.total = res.data.total || 0
       } finally {
         this.loading = false
       }
+    },
+    handleSearch() {
+      this.pagination.page = 1
+      this.fetchList()
+    },
+    handleSizeChange(val) {
+      this.pagination.pageSize = val
+      this.fetchList()
+    },
+    handleCurrentChange(val) {
+      this.pagination.page = val
+      this.fetchList()
     },
     openCreate() {
       this.editingId = null
@@ -188,5 +223,10 @@ export default {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+}
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

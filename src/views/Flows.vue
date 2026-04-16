@@ -3,8 +3,11 @@
     <div class="panel">
       <div class="panel-header">流程管理</div>
       <div class="panel-body">
-        <div class="toolbar">
-          <el-button type="primary" @click="fetchList">刷新</el-button>
+        <!-- 搜索工具栏 -->
+        <div class="toolbar"> 
+          <el-input v-model="filters.project" placeholder="项目" style="width: 150px" clearable />
+          <el-input v-model="filters.name" placeholder="流程名称" style="width: 180px" clearable />
+          <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button v-if="canWrite" @click="openCreate">新建</el-button>
           <el-button @click="exportData">导出</el-button>
         </div>
@@ -31,6 +34,19 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <!-- 分页组件 -->
+        <div class="pagination">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -79,6 +95,7 @@ export default {
   },
   data() {
     return {
+      filters: { name: '', project: '' },   // 搜索条件
       list: [],
       loading: false,
       dialogVisible: false,
@@ -89,6 +106,11 @@ export default {
       runPayload: { host: '' },
       runId: null,
       runLoading: false,
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 0
+      },
       helpContent: `// 流程 JSON 示例
 {
   "name": "demo_flow",
@@ -122,13 +144,38 @@ export default {
     async fetchList() {
       this.loading = true
       try {
-        const res = await listFlows()
-        this.list = res.data
+        const params = {
+          name: this.filters.name,
+          project: this.filters.project,
+          page: this.pagination.page,
+          page_size: this.pagination.pageSize
+        }
+        // 过滤空参数
+        Object.keys(params).forEach(key => {
+          if (params[key] === '' || params[key] === null || params[key] === undefined) {
+            delete params[key]
+          }
+        })
+        const res = await listFlows(params)
+        this.list = res.data.items || []
+        this.pagination.total = res.data.total || 0
       } catch (error) {
         ElMessage.error('获取流程列表失败')
       } finally {
         this.loading = false
       }
+    },
+    handleSearch() {
+      this.pagination.page = 1
+      this.fetchList()
+    },
+    handleSizeChange(val) {
+      this.pagination.pageSize = val
+      this.fetchList()
+    },
+    handleCurrentChange(val) {
+      this.pagination.page = val
+      this.fetchList()
     },
     openCreate() {
       this.editingId = null
@@ -156,7 +203,6 @@ export default {
         ElMessage.error('JSON 格式错误')
         return
       }
-      // 确保 payload 中包含 project 字段
       if (!payload.project) {
         ElMessage.error('流程 JSON 中必须包含 project 字段（项目名称）')
         return
@@ -257,5 +303,10 @@ export default {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+}
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

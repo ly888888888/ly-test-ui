@@ -56,7 +56,9 @@ export default {
   },
   mounted() {
     const stored = localStorage.getItem('recentRuns')
-    this.runs = stored ? JSON.parse(stored) : []
+    let allRuns = stored ? JSON.parse(stored) : []
+    // 只展示最近10条（按时间倒序，取前10）
+    this.runs = allRuns.slice(0, 10)
   },
   methods: {
     open(runId) {

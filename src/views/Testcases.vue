@@ -3,10 +3,12 @@
     <div class="panel">
       <div class="panel-header">用例管理</div>
       <div class="panel-body">
+        <!-- 搜索工具栏 -->
         <div class="toolbar">
-          <el-input v-model="filters.project" placeholder="项目" />
-          <el-input v-model="filters.api_id" placeholder="接口ID" />
-          <el-button type="primary" @click="fetchList">查询</el-button>
+          <el-input v-model="filters.project" placeholder="项目" style="width: 150px" clearable />
+          <el-input v-model="filters.name" placeholder="用例名称" style="width: 180px" clearable />
+          <el-input v-model="filters.api_id" placeholder="接口ID" style="width: 120px" clearable />
+          <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button v-if="canWrite" @click="openCreate">新建</el-button>
           <el-button @click="exportData">导出</el-button>
         </div>
@@ -34,6 +36,19 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <!-- 分页组件 -->
+        <div class="pagination">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -87,7 +102,7 @@ export default {
   },
   data() {
     return {
-      filters: { project: '', api_id: '' },
+      filters: { name: '', project: '', api_id: '' },   // 添加 name 字段
       list: [],
       loading: false,
       dialogVisible: false,
@@ -99,6 +114,11 @@ export default {
       runId: null,
       runLoading: false,
       currentTestType: '',
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 0
+      },
       helpContent: `// 用例 JSON 示例
 {
   "project": "jupiter",
@@ -130,15 +150,38 @@ export default {
     async fetchList() {
       this.loading = true
       try {
-        const params = { ...this.filters }
+        const params = {
+          ...this.filters,
+          page: this.pagination.page,
+          page_size: this.pagination.pageSize
+        }
         if (params.api_id && !isNaN(params.api_id)) params.api_id = Number(params.api_id)
+        // 删除空参数
+        Object.keys(params).forEach(key => {
+          if (params[key] === '' || params[key] === null || params[key] === undefined) {
+            delete params[key]
+          }
+        })
         const res = await listTestcases(params)
-        this.list = res.data
+        this.list = res.data.items || []
+        this.pagination.total = res.data.total || 0
       } catch (error) {
         ElMessage.error('获取用例列表失败')
       } finally {
         this.loading = false
       }
+    },
+    handleSearch() {
+      this.pagination.page = 1
+      this.fetchList()
+    },
+    handleSizeChange(val) {
+      this.pagination.pageSize = val
+      this.fetchList()
+    },
+    handleCurrentChange(val) {
+      this.pagination.page = val
+      this.fetchList()
     },
     openCreate() {
       this.editingId = null
@@ -168,7 +211,6 @@ export default {
         ElMessage.error('JSON 格式错误')
         return
       }
-      // 确保 payload 中包含 project 字段
       if (!payload.project) {
         ElMessage.error('用例 JSON 中必须包含 project 字段（项目名称）')
         return
@@ -274,5 +316,10 @@ export default {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+}
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
