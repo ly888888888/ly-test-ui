@@ -12,3 +12,12 @@
 接口请求返回结果:{"retCode":"200","retMsg":"ok","data":[{"action_template":"sync_lesson","name":"同步课文"}]}
 需要生成smoke测试
 smoke断言，retCode == 200
+
+3) 使用参数模版
+只创建接口，我现在有个新接口, GET请求, edubox项目, 
+请求路由和参数:/edu/funclock/syncword/option?isencode=1&account_id=template:ai_account_id&token=template:ai_token
+接口请求返回结果:{
+    "retCode": "200",
+    "retMsg": "ok",
+    "data": []
+}

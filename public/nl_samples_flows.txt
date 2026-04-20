@@ -1,22 +1,26 @@
 ﻿【流程自然语言示例】
 
-测试流程如下（含条件分支 + 步骤断言）：
-1) POST /api/login
-请求: {"params":{"user":"alice","password":"p1"},"extract":{"token":"$.data.token","is_vip":"$.data.vip"}}
-响应: {"retCode":200,"token":"t-001","vip":true}
+测试流程，edubox项目
 
-IF 条件: ${steps.step1.is_vip} == True
-THEN:
-2.1) GET /api/vip/reco
-请求: {"params":{"token":"${steps.step1.token}"}}
-响应: {"retCode":200,"data":[]}
-ELSE:
-2.2) GET /api/free/reco
-请求: {"params":{"token":"${steps.step1.token}"}}
-响应: {"retCode":200,"data":[]}
+1) GET /edu/funclock/english/options?isencode=1
+响应: {
+    "retCode": "200",
+    "retMsg": "ok",
+    "data": {
+        "grade_term": ["一年级上","一年级下","二年级上"],
+        "book_version": ["人教pep同步听力"]
+    }
+}
+提取: {"grade_term": "random_list($.data.grade_term)", "book_version": "random_list($.data.book_version)"}
+断言: data.grade_term 不为空 且 data.book_version 不为空
 
-步骤1断言是 retCode == 200
-步骤2.1断言是 retCode == 200
-步骤2.2断言是 data != null
-步骤2.2断言是 retMsg == ok
-步骤2.2断言是 retCode == 200
+2) GET /edu/funclock/english/units?isencode=1&account_id=template:ai_account_id&token=template:ai_token&grade_term=${steps.step1.grade_term}&book_version=${steps.step1.book_version}
+响应: {
+    "retCode": "200",
+    "retMsg": "ok",
+    "data": ["Unit 1", "Unit 2"]
+}
+断言: data 存在且 data[0] 存在
+
+支持：
+断言: data 存在 且 (retCode == 200 或 retMsg == 'ok')

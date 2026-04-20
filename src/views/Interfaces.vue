@@ -18,6 +18,16 @@
           <el-table-column prop="path" label="路径" />
           <el-table-column prop="method" label="方法" width="90" />
           <el-table-column prop="description" label="描述" />
+          <el-table-column prop="created_at" label="创建时间" width="160">
+            <template #default="scope">
+              {{ formatDateTime(scope.row.created_at) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="updated_at" label="修改时间" width="160">
+            <template #default="scope">
+              {{ formatDateTime(scope.row.updated_at) }}
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="220">
             <template #default="scope">
               <el-button size="small" v-if="canWrite" @click="openEdit(scope.row)">编辑</el-button>
@@ -58,6 +68,7 @@ import { exportToExcel } from '../utils/export'
 import { mapState } from 'vuex'
 import { hasPerm } from '../utils/perm'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import dayjs from 'dayjs'
 
 export default {
   name: 'Interfaces',
@@ -115,6 +126,10 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    formatDateTime(dateStr) {
+      if (!dateStr) return '-'
+      return dayjs(dateStr).format('YYYY-MM-DD HH:mm:ss')
     },
     handleSearch() {
       this.pagination.page = 1
