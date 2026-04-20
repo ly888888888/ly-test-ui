@@ -51,3 +51,4 @@ export const updateProject = (id, data) => http.put(`/api/projects/${id}`, data)
 export const deleteProject = id => http.delete(`/api/projects/${id}`)
 
 export const listRunRecords = params => http.get('/api/run/records', { params })
+export const cancelRunRecord = runId => http.post(`/api/run/cancel/${runId}`)
