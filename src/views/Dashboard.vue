@@ -23,12 +23,13 @@
       <div class="panel">
         <div class="panel-header">最近运行</div>
         <div class="panel-body">
-          <div v-if="!runs.length" class="text-muted">暂无运行记录。</div>
+          <div v-if="loading" class="text-muted">加载中...</div>
+          <div v-else-if="!runs.length" class="text-muted">暂无运行记录。</div>
           <ul v-else>
-            <li v-for="run in runs" :key="run.runId" class="run-item">
-              <span class="mono">{{ run.runId }}</span>
-              <span class="text-muted">{{ run.type }}</span>
-              <el-button size="small" @click="open(run.runId)">查看</el-button>
+            <li v-for="run in runs" :key="run.run_id" class="run-item">
+              <span class="mono">{{ run.run_id }}</span>
+              <span class="text-muted">{{ run.type === 'flow' ? '流程' : '用例' }}</span>
+              <el-button size="small" @click="open(run.run_id, run.type)">查看</el-button>
             </li>
           </ul>
         </div>
@@ -45,6 +46,8 @@
 </template>
 
 <script>
+import { listRunRecords } from '../api'
+
 export default {
   name: 'Dashboard',
   computed: {
@@ -52,23 +55,41 @@ export default {
     baseUrl() { return this.$store.state.baseUrl }
   },
   data() {
-    return { runs: [] }
+    return {
+      runs: [],
+      loading: false
+    }
   },
   mounted() {
-    const stored = localStorage.getItem('recentRuns')
-    let allRuns = stored ? JSON.parse(stored) : []
-    // 只展示最近10条（按时间倒序，取前10）
-    this.runs = allRuns.slice(0, 10)
+    this.fetchRecentRuns()
   },
   methods: {
-    open(runId) {
-      this.$router.push({ path: '/results', query: { run_id: runId } })
+    async fetchRecentRuns() {
+      this.loading = true
+      try {
+        const res = await listRunRecords({ page: 1, page_size: 10 })
+        // 接口返回格式: { items: [...], total, page, page_size }
+        this.runs = (res.data.items || []).map(item => ({
+          run_id: item.run_id,
+          type: item.type,
+          start_time: item.start_time
+        }))
+      } catch (err) {
+        console.error('获取最近运行记录失败', err)
+        this.runs = []
+      } finally {
+        this.loading = false
+      }
+    },
+    open(runId, type) {
+      this.$router.push({ path: '/results', query: { run_id: runId, type: type } })
     }
   }
 }
 </script>
 
 <style scoped>
+/* 原有样式保持不变 */
 .hero {
   padding: 20px;
   display: flex;
@@ -77,23 +98,19 @@ export default {
   gap: 16px;
   margin-bottom: 16px;
 }
-
 .title {
   font-size: 22px;
   font-weight: 700;
 }
-
 .actions {
   display: flex;
   gap: 10px;
 }
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
 }
-
 .run-item {
   display: flex;
   align-items: center;

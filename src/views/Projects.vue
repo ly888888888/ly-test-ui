@@ -21,7 +21,16 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column prop="created_at" label="创建时间" />
+            <el-table-column prop="created_at" label="创建时间" width="160">
+              <template #default="scope">
+                {{ formatDateTime(scope.row.created_at) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="updated_at" label="修改时间" width="160">
+              <template #default="scope">
+                {{ formatDateTime(scope.row.updated_at) }}
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="180" v-if="canWrite">
               <template #default="scope">
                 <el-button size="small" @click="openEdit(scope.row)">编辑</el-button>
@@ -56,6 +65,7 @@
   import { listProjects, createProject, updateProject, deleteProject } from '../api'
   import { mapState } from 'vuex'
   import { hasPerm } from '../utils/perm'
+  import dayjs from 'dayjs'
   
   export default {
     name: 'Projects',
@@ -87,6 +97,10 @@
         } finally {
           this.loading = false
         }
+      },
+      formatDateTime(dateStr) {
+        if (!dateStr) return '-'
+        return dayjs(dateStr).format('YYYY-MM-DD HH:mm:ss')
       },
       openCreate() {
         this.editingId = null
