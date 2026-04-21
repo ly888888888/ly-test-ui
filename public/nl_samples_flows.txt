@@ -3,23 +3,10 @@
 测试流程，edubox项目
 
 1) GET /edu/funclock/english/options?isencode=1
-响应: {
-    "retCode": "200",
-    "retMsg": "ok",
-    "data": {
-        "grade_term": ["一年级上","一年级下","二年级上"],
-        "book_version": ["人教pep同步听力"]
-    }
-}
 提取: {"grade_term": "random_list($.data.grade_term)", "book_version": "random_list($.data.book_version)"}
 断言: data.grade_term 不为空 且 data.book_version 不为空
 
 2) GET /edu/funclock/english/units?isencode=1&account_id=template:ai_account_id&token=template:ai_token&grade_term=${steps.step1.grade_term}&book_version=${steps.step1.book_version}
-响应: {
-    "retCode": "200",
-    "retMsg": "ok",
-    "data": ["Unit 1", "Unit 2"]
-}
 断言: data 存在且 data[0] 存在
 
 支持：
