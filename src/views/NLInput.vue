@@ -4,7 +4,8 @@
       <div class="panel-header">自然语言录入</div>
       <div class="panel-body">
         <el-tabs v-model="activeTab" class="nl-tabs">
-          <el-tab-pane label="创建用例" name="case" />
+          <el-tab-pane label="创建接口" name="interface" />
+          <el-tab-pane label="创建用例" name="testcase" />
           <el-tab-pane label="创建流程" name="flow" />
         </el-tabs>
         <div class="grid">
@@ -17,31 +18,30 @@
             </div>
           </div>
           <div class="right">
-            <template v-if="activeTab === 'case'">
-              <div class="panel mini">
-                <div class="panel-header">解析后的接口</div>
-                <div class="panel-body">
-                  <el-input v-model="interfaceText" type="textarea" :rows="8" class="mono" />
-                  <el-button type="success" size="small" @click="createInterface" :disabled="!canInterfaceWrite || !interfaceText">创建接口</el-button>
-                </div>
+            <!-- 创建接口标签页 -->
+            <div v-if="activeTab === 'interface'" class="panel mini">
+              <div class="panel-header">解析后的接口</div>
+              <div class="panel-body">
+                <el-input v-model="interfaceText" type="textarea" :rows="12" class="mono" />
+                <el-button type="success" size="small" @click="createInterface" :disabled="!canInterfaceWrite || !interfaceText">创建接口</el-button>
               </div>
-              <div class="panel mini">
-                <div class="panel-header">解析后的用例</div>
-                <div class="panel-body">
-                  <el-input v-model="testcasesText" type="textarea" :rows="8" class="mono" />
-                  <el-button type="success" size="small" @click="createTestcases" :disabled="!canTestcaseWrite || !testcasesText">创建用例</el-button>
-                </div>
+            </div>
+            <!-- 创建用例标签页 -->
+            <div v-if="activeTab === 'testcase'" class="panel mini">
+              <div class="panel-header">解析后的用例</div>
+              <div class="panel-body">
+                <el-input v-model="testcasesText" type="textarea" :rows="12" class="mono" />
+                <el-button type="success" size="small" @click="createTestcases" :disabled="!canTestcaseWrite || !testcasesText">创建用例</el-button>
               </div>
-            </template>
-            <template v-else>
-              <div class="panel mini">
-                <div class="panel-header">解析后的流程</div>
-                <div class="panel-body">
-                  <el-input v-model="flowText" type="textarea" :rows="8" class="mono" />
-                  <el-button type="success" size="small" @click="createFlow" :disabled="!canFlowWrite || !flowText">创建流程</el-button>
-                </div>
+            </div>
+            <!-- 创建流程标签页 -->
+            <div v-if="activeTab === 'flow'" class="panel mini">
+              <div class="panel-header">解析后的流程</div>
+              <div class="panel-body">
+                <el-input v-model="flowText" type="textarea" :rows="12" class="mono" />
+                <el-button type="success" size="small" @click="createFlow" :disabled="!canFlowWrite || !flowText">创建流程</el-button>
               </div>
-            </template>
+            </div>
           </div>
         </div>
         <div class="text-muted">示例来自 public/nl_samples.txt</div>
@@ -49,6 +49,7 @@
     </div>
   </div>
 
+  <!-- 错误弹窗和示例弹窗 -->
   <el-dialog v-model="errorVisible" title="输入格式不正确" width="60%">
     <div class="error-block">{{ errorMsg }}</div>
     <pre class="mono help-pre">{{ errorExample }}</pre>
@@ -88,21 +89,22 @@ export default {
     },
     inputValue: {
       get() {
-        return this.activeTab === 'flow' ? this.inputFlow : this.inputCase
+        if (this.activeTab === 'interface') return this.inputInterface
+        if (this.activeTab === 'testcase') return this.inputTestcase
+        return this.inputFlow
       },
       set(val) {
-        if (this.activeTab === 'flow') {
-          this.inputFlow = val
-        } else {
-          this.inputCase = val
-        }
+        if (this.activeTab === 'interface') this.inputInterface = val
+        else if (this.activeTab === 'testcase') this.inputTestcase = val
+        else this.inputFlow = val
       }
     }
   },
   data() {
     return {
-      activeTab: 'case',
-      inputCase: '',
+      activeTab: 'interface',
+      inputInterface: '',
+      inputTestcase: '',
       inputFlow: '',
       interfaceText: '',
       testcasesText: '',
@@ -113,6 +115,7 @@ export default {
       sampleVisible: false,
       sampleText: '',
       sampleTitle: '',
+      sampleCacheInterface: '',
       sampleCacheCase: '',
       sampleCacheFlow: ''
     }
@@ -130,58 +133,80 @@ export default {
         const res = await fetch('/nl_samples_flows.txt')
         this.sampleCacheFlow = await res.text()
         return this.sampleCacheFlow
+      } else if (kind === 'case') {
+        if (this.sampleCacheCase) return this.sampleCacheCase
+        const res = await fetch('/nl_samples_cases.txt')
+        this.sampleCacheCase = await res.text()
+        return this.sampleCacheCase
+      } else {
+        if (this.sampleCacheInterface) return this.sampleCacheInterface
+        // 如果没有专门的接口示例文件，可以复用用例示例或创建一个简单的
+        const res = await fetch('/nl_samples_interface.txt')
+        this.sampleCacheInterface = await res.text()
+        return this.sampleCacheInterface
       }
-      if (this.sampleCacheCase) return this.sampleCacheCase
-      const res = await fetch('/nl_samples_cases.txt')
-      this.sampleCacheCase = await res.text()
-      return this.sampleCacheCase
     },
     async loadSample() {
-      const isFlow = this.activeTab === 'flow'
-      this.sampleText = await this.fetchSampleText(isFlow ? 'flow' : 'case')
-      this.sampleTitle = isFlow ? '流程示例' : '用例示例'
+      let kind = ''
+      if (this.activeTab === 'interface') kind = 'interface'
+      else if (this.activeTab === 'testcase') kind = 'case'
+      else kind = 'flow'
+      this.sampleText = await this.fetchSampleText(kind)
+      this.sampleTitle = kind === 'interface' ? '接口示例' : (kind === 'case' ? '用例示例' : '流程示例')
       this.sampleVisible = true
     },
     clearAll() {
-      if (this.activeTab === 'flow') {
-        this.inputFlow = ''
-      } else {
-        this.inputCase = ''
-      }
+      if (this.activeTab === 'interface') this.inputInterface = ''
+      else if (this.activeTab === 'testcase') this.inputTestcase = ''
+      else this.inputFlow = ''
       this.interfaceText = ''
       this.testcasesText = ''
       this.flowText = ''
     },
     async parse() {
-      this.interfaceText = ''
-      this.testcasesText = ''
-      this.flowText = ''
+      if (this.activeTab === 'interface') this.interfaceText = ''
+      else if (this.activeTab === 'testcase') this.testcasesText = ''
+      else this.flowText = ''
 
       const text = this.inputValue || ''
       const flowLike = this.isFlowInput(text)
       const caseLike = this.isCaseInput(text)
-      if (this.activeTab === 'flow' && caseLike && !flowLike) {
+
+      if (this.activeTab === 'flow' && !flowLike) {
         this.errorMsg = '当前是创建流程模式，请输入流程格式（包含步骤1) GET/POST 等）。'
         this.errorExample = await this.fetchSampleText('flow')
         this.errorVisible = true
         return
       }
-      if (this.activeTab === 'case' && flowLike) {
+      if (this.activeTab === 'testcase' && !caseLike) {
         this.errorMsg = '当前是创建用例模式，请输入接口用例格式（包含请求路由和返回结果）。'
         this.errorExample = await this.fetchSampleText('case')
         this.errorVisible = true
         return
       }
+      if (this.activeTab === 'interface' && !caseLike) {
+        this.errorMsg = '当前是创建接口模式，请输入接口描述（包含请求路由和返回结果）。'
+        this.errorExample = await this.fetchSampleText('interface')
+        this.errorVisible = true
+        return
+      }
 
       try {
-        const res = await generateFromNL({ text: this.inputValue, base_url: this.baseUrl || undefined })
+        const res = await generateFromNL({ 
+          text: this.inputValue, 
+          base_url: this.baseUrl || undefined,
+          mode: this.activeTab   // 'interface', 'testcase', 'flow'
+        })
         const { interfacePayload, testcases, flowPayload } = res.data
-        this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
-        this.testcasesText = (testcases && testcases.length) ? JSON.stringify(testcases, null, 2) : ''
-        this.flowText = flowPayload ? JSON.stringify(flowPayload, null, 2) : ''
+        if (this.activeTab === 'interface') {
+          this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
+        } else if (this.activeTab === 'testcase') {
+          this.testcasesText = (testcases && testcases.length) ? JSON.stringify(testcases, null, 2) : ''
+        } else {
+          this.flowText = flowPayload ? JSON.stringify(flowPayload, null, 2) : ''
+        }
       } catch (e) {
         const err = e.response?.data
-        // 处理项目不存在或禁用的错误
         if (err?.code === 'PROJECT_NOT_FOUND') {
           this.$message.error(err.error)
           this.$confirm('是否立即创建该项目？', '提示', {
@@ -197,10 +222,9 @@ export default {
           this.$message.error(err.error)
           return
         }
-        // 其他格式错误
         if (err?.error) {
           this.errorMsg = err.error
-          const kind = this.activeTab === 'flow' ? 'flow' : 'case'
+          const kind = this.activeTab === 'flow' ? 'flow' : (this.activeTab === 'testcase' ? 'case' : 'interface')
           try {
             this.errorExample = await this.fetchSampleText(kind)
           } catch {
@@ -210,10 +234,16 @@ export default {
           return
         }
         // fallback 本地解析
-        const { interfacePayload, testcases } = parseNL(this.inputValue)
-        this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
-        this.testcasesText = (testcases && testcases.length) ? JSON.stringify(testcases, null, 2) : ''
-        this.flowText = ''
+        if (this.activeTab !== 'flow') {
+          const { interfacePayload, testcases } = parseNL(this.inputValue)
+          if (this.activeTab === 'interface') {
+            this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
+          } else {
+            this.testcasesText = (testcases && testcases.length) ? JSON.stringify(testcases, null, 2) : ''
+          }
+        } else {
+          this.flowText = ''
+        }
       }
     },
     async createInterface() {
@@ -289,6 +319,8 @@ export default {
         const errMsg = e.response?.data?.error || e.message
         if (errMsg.includes('项目') && (errMsg.includes('不存在') || errMsg.includes('禁用'))) {
           ElMessage.error(errMsg + '，请先到项目管理中创建或启用该项目')
+        } else if (errMsg.includes('接口不存在')) {
+          ElMessage.error(errMsg + '，请先创建对应的接口')
         } else {
           ElMessage.error('流程创建失败：' + errMsg)
         }
@@ -310,51 +342,41 @@ export default {
   gap: 18px;
   align-items: start;
 }
-
 .left {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .right {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
 .actions {
   display: flex;
   gap: 10px;
 }
-
 .mini {
   margin-bottom: 0;
 }
-
 .nl-tabs {
   margin-bottom: 12px;
 }
-
 :deep(.mini .panel-body) {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 :deep(.mini .el-textarea) {
   flex: 1;
 }
-
 :deep(.mini .el-textarea__inner) {
   min-height: 160px;
 }
-
 .error-block {
   margin-bottom: 8px;
   color: var(--accent);
 }
-
 .help-pre {
   max-height: 420px;
   overflow: auto;
@@ -363,7 +385,6 @@ export default {
   border-radius: 10px;
   padding: 12px;
 }
-
 @media (max-width: 1024px) {
   .grid {
     grid-template-columns: 1fr;
