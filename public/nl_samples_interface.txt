@@ -1,4 +1,4 @@
-【用例自然语言示例】
+【接口自然语言示例】
 
 我现在有个接口, GET请求, edubox项目,
 请求路由和参数:/edu/funclock/homepage/english?isencode=1&version=randomVer(),

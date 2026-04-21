@@ -44,12 +44,12 @@
             </div>
           </div>
         </div>
-        <div class="text-muted">示例来自 public/nl_samples.txt</div>
+        <!-- 已移除底部的示例提示文本 -->
       </div>
     </div>
   </div>
 
-  <!-- 错误弹窗和示例弹窗 -->
+  <!-- 错误弹窗和示例弹窗（保持不变） -->
   <el-dialog v-model="errorVisible" title="输入格式不正确" width="60%">
     <div class="error-block">{{ errorMsg }}</div>
     <pre class="mono help-pre">{{ errorExample }}</pre>
@@ -140,7 +140,6 @@ export default {
         return this.sampleCacheCase
       } else {
         if (this.sampleCacheInterface) return this.sampleCacheInterface
-        // 如果没有专门的接口示例文件，可以复用用例示例或创建一个简单的
         const res = await fetch('/nl_samples_interface.txt')
         this.sampleCacheInterface = await res.text()
         return this.sampleCacheInterface
@@ -192,11 +191,7 @@ export default {
       }
 
       try {
-        const res = await generateFromNL({ 
-          text: this.inputValue, 
-          base_url: this.baseUrl || undefined,
-          mode: this.activeTab   // 'interface', 'testcase', 'flow'
-        })
+        const res = await generateFromNL({ text: this.inputValue, base_url: this.baseUrl || undefined, mode: this.activeTab })
         const { interfacePayload, testcases, flowPayload } = res.data
         if (this.activeTab === 'interface') {
           this.interfaceText = interfacePayload ? JSON.stringify(interfacePayload, null, 2) : ''
@@ -336,6 +331,7 @@ export default {
 </script>
 
 <style scoped>
+/* 样式保持不变 */
 .grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
