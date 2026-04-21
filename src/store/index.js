@@ -38,8 +38,13 @@ export default createStore({
       state.tabs = state.tabs.filter(t => t.path !== path)
     },
     setBaseUrl(state, url) {
-      state.baseUrl = url
-      localStorage.setItem('baseUrl', url)
+      const cleanUrl = url || ''
+      state.baseUrl = cleanUrl
+      if (cleanUrl) {
+        localStorage.setItem('baseUrl', cleanUrl)
+      } else {
+        localStorage.removeItem('baseUrl')
+      }
     },
     setDarkMode(state, val) {
       state.darkMode = val

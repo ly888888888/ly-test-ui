@@ -25,7 +25,14 @@
     <div class="controls">
       <div class="control-row">
         <span class="text-muted">Base URL</span>
-        <el-input v-model="baseUrlLocal" size="small" @change="saveBase" />
+        <el-input
+          v-model="baseUrlLocal"
+          size="small"
+          placeholder="留空使用代理"
+          clearable
+          @input="saveBase"
+          @clear="saveBase"
+        />
       </div>
       <div class="control-row">
         <span class="text-muted">暗色模式</span>
@@ -56,6 +63,12 @@ export default {
   data() {
     return { baseUrlLocal: this.baseUrl }
   },
+  watch: {
+    // 监听 store 中的 baseUrl 变化，同步到本地输入框（例如登录页修改后）
+    baseUrl(newVal) {
+      this.baseUrlLocal = newVal
+    }
+  },
   methods: {
     can(p) {
       return hasPerm(this.user?.permissions, p)
@@ -64,6 +77,7 @@ export default {
       return hasAnyPerm(this.user?.permissions, list)
     },
     saveBase() {
+      // 提交到 Vuex，空字符串表示使用代理
       this.$store.commit('setBaseUrl', this.baseUrlLocal || '')
     },
     toggleDark(val) {

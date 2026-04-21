@@ -19,7 +19,13 @@
         <el-form @submit.prevent>
           <div class="advanced">
             <el-form-item label="Base URL">
-              <el-input v-model="baseUrl" placeholder="留空使用 /api 代理（推荐）" />
+              <el-input
+                v-model="baseUrl"
+                placeholder="留空使用 /api 代理（推荐）"
+                clearable
+                @input="handleBaseUrlChange"
+                @clear="handleBaseUrlChange"
+              />
             </el-form-item>
             <div class="hint">开发环境建议留空，自动走 /api 代理</div>
           </div>
@@ -105,6 +111,9 @@ export default {
     if (this.captchaTimer) clearInterval(this.captchaTimer)
   },
   methods: {
+    handleBaseUrlChange() {
+      this.$store.commit('setBaseUrl', this.baseUrl || '')
+    },
     setMode(val) {
       this.isRegister = val
       this.error = ''
